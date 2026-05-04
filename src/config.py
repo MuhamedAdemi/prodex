@@ -64,7 +64,7 @@ OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 # CLOUD mode: Groq API (free tier — console.groq.com)
 # Set GROQ_API_KEY environment variable to activate cloud mode automatically
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROQ_MODEL   = os.getenv("GROQ_MODEL", "llama3-8b-8192")
+GROQ_MODEL   = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
 
 # ── Hugging Face Hub ───────────────────────────────────────────────────────────
 # Used in cloud mode to download the FAISS index on first startup
