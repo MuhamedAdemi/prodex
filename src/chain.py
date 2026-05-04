@@ -9,12 +9,38 @@ Flow per user query:
   5. Claude generates a natural, helpful answer
 """
 
-from langchain_ollama import ChatOllama
+import os
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
-from src.config import OLLAMA_MODEL, OLLAMA_BASE_URL, TOP_K
+from src.config import OLLAMA_MODEL, OLLAMA_BASE_URL, GROQ_API_KEY, GROQ_MODEL, TOP_K
 from src.vector_store import VectorStore
+
+
+def _build_llm():
+    """
+    Auto-detect LLM mode:
+      - GROQ_API_KEY is set  →  Groq cloud (fast, free tier)
+      - not set              →  Ollama local (mistral:7b-instruct)
+    """
+    if GROQ_API_KEY:
+        from langchain_groq import ChatGroq
+        print(f"✓ LLM mode: Groq cloud ({GROQ_MODEL})")
+        return ChatGroq(
+            model=GROQ_MODEL,
+            temperature=0.1,
+            max_tokens=512,
+            api_key=GROQ_API_KEY,
+        )
+    else:
+        from langchain_ollama import ChatOllama
+        print(f"✓ LLM mode: Ollama local ({OLLAMA_MODEL})")
+        return ChatOllama(
+            model=OLLAMA_MODEL,
+            base_url=OLLAMA_BASE_URL,
+            temperature=0.1,
+            max_tokens=512,
+        )
 
 # ── System prompt ─────────────────────────────────────────────────────────────
 
@@ -93,12 +119,7 @@ class ProdExChain:
 
     def __init__(self) -> None:
         self.vector_store = VectorStore()
-        self.llm = ChatOllama(
-            model=OLLAMA_MODEL,
-            base_url=OLLAMA_BASE_URL,
-            temperature=0.1,
-            max_tokens=512,
-        )
+        self.llm = _build_llm()
         self._chain = RAG_PROMPT | self.llm | StrOutputParser()
         print(f"✓ ProdEx loaded — {self.vector_store.total_products:,} products in index")
 

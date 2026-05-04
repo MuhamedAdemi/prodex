@@ -56,10 +56,17 @@ FAISS_METADATA_FILE = FAISS_DIR / "products_metadata.json"
 # ── RAG settings ──────────────────────────────────────────────────────────────
 TOP_K = int(os.getenv("TOP_K", 5))  # how many products to retrieve per query
 
-# ── LLM settings (Ollama — local, no API key needed) ──────────────────────────
-# Make sure Ollama is running: open a terminal and run `ollama serve`
-# Recommended models (pull one before starting):
-#   ollama pull mistral:7b-instruct   ← good, you already have mistral
-#   ollama pull llama3.1:8b           ← slightly better for RAG
-OLLAMA_MODEL        = os.getenv("OLLAMA_MODEL", "mistral:7b-instruct")
-OLLAMA_BASE_URL     = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+# ── LLM settings ──────────────────────────────────────────────────────────────
+# LOCAL mode (default): Ollama — run `ollama serve` before starting
+OLLAMA_MODEL    = os.getenv("OLLAMA_MODEL", "mistral:7b-instruct")
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+
+# CLOUD mode: Groq API (free tier — console.groq.com)
+# Set GROQ_API_KEY environment variable to activate cloud mode automatically
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+GROQ_MODEL   = os.getenv("GROQ_MODEL", "llama3-8b-8192")
+
+# ── Hugging Face Hub ───────────────────────────────────────────────────────────
+# Used in cloud mode to download the FAISS index on first startup
+# Format: "username/dataset-name"  e.g. "MuhamedAdemi/prodex-index"
+HF_REPO_ID = os.getenv("HF_REPO_ID", "")

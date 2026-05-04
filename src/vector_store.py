@@ -22,8 +22,10 @@ from sentence_transformers import SentenceTransformer
 
 from src.config import (
     EMBEDDING_MODEL,
+    FAISS_DIR,
     FAISS_INDEX_FILE,
     FAISS_METADATA_FILE,
+    HF_REPO_ID,
 )
 
 console = Console()
@@ -87,6 +89,33 @@ def build_faiss_index(products: list[dict]) -> None:
     console.print("Next step: run [bold]python scripts/03_test_search.py[/bold] to verify")
 
 
+# ── Cloud: download index from Hugging Face Hub ───────────────────────────────
+
+def _download_index_from_hub() -> None:
+    """
+    Download FAISS index files from Hugging Face Hub.
+    Triggered automatically in cloud mode when HF_REPO_ID is set
+    and the index is not present locally.
+    """
+    if not HF_REPO_ID:
+        return
+    try:
+        from huggingface_hub import hf_hub_download
+        console.print(f"[cyan]Cloud mode: downloading FAISS index from {HF_REPO_ID}...[/cyan]")
+        FAISS_DIR.mkdir(parents=True, exist_ok=True)
+        for filename in ["products.index", "products_metadata.json"]:
+            hf_hub_download(
+                repo_id=HF_REPO_ID,
+                filename=filename,
+                repo_type="dataset",
+                local_dir=str(FAISS_DIR),
+            )
+        console.print("[green]✓[/green] FAISS index downloaded from Hugging Face Hub")
+    except Exception as e:
+        console.print(f"[red]✗ Failed to download index from Hub: {e}[/red]")
+        raise
+
+
 # ── Load index ────────────────────────────────────────────────────────────────
 
 class VectorStore:
@@ -96,10 +125,15 @@ class VectorStore:
     """
 
     def __init__(self) -> None:
+        # In cloud mode: auto-download index from Hugging Face Hub if missing
+        if not FAISS_INDEX_FILE.exists() and HF_REPO_ID:
+            _download_index_from_hub()
+
         if not FAISS_INDEX_FILE.exists():
             raise FileNotFoundError(
-                f"FAISS index not found at {FAISS_INDEX_FILE}. "
-                "Run scripts/02_build_index.py first."
+                f"FAISS index not found at {FAISS_INDEX_FILE}.\n"
+                "  Local: run  python scripts/04_rebuild_all.py\n"
+                "  Cloud: set  HF_REPO_ID in your environment/secrets"
             )
         self._index    = faiss.read_index(str(FAISS_INDEX_FILE))
         self._metadata = json.loads(FAISS_METADATA_FILE.read_text(encoding="utf-8"))
