@@ -2,7 +2,19 @@
 app.py — ProdEx Streamlit Chatbot UI — Modern Design v2
 """
 
+import os
 import streamlit as st
+
+# ── Inject Streamlit Cloud secrets into os.environ ────────────────────────────
+# Must happen BEFORE importing src modules, which read os.getenv() at import time.
+# Locally: this block is a no-op (.env file is loaded by config.py instead).
+try:
+    for _k, _v in st.secrets.items():
+        if isinstance(_v, str):
+            os.environ[_k] = _v
+except Exception:
+    pass  # No secrets.toml — running locally, .env handles it
+
 from src.chain import ProdExChain
 
 # ── Page config ───────────────────────────────────────────────────────────────

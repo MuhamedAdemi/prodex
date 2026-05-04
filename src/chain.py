@@ -22,15 +22,22 @@ def _build_llm():
     Auto-detect LLM mode:
       - GROQ_API_KEY is set  →  Groq cloud (fast, free tier)
       - not set              →  Ollama local (mistral:7b-instruct)
+
+    Reads env vars at call time (not import time) so that Streamlit Cloud
+    secrets injected into os.environ by app.py are always visible here.
     """
-    if GROQ_API_KEY:
+    import os
+    api_key = os.environ.get("GROQ_API_KEY", "") or GROQ_API_KEY
+    model   = os.environ.get("GROQ_MODEL",   "") or GROQ_MODEL
+
+    if api_key:
         from langchain_groq import ChatGroq
-        print(f"✓ LLM mode: Groq cloud ({GROQ_MODEL})")
+        print(f"✓ LLM mode: Groq cloud ({model})")
         return ChatGroq(
-            model=GROQ_MODEL,
+            model=model,
             temperature=0.1,
             max_tokens=512,
-            api_key=GROQ_API_KEY,
+            api_key=api_key,
         )
     else:
         from langchain_ollama import ChatOllama
