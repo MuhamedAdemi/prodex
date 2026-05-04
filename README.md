@@ -1,12 +1,14 @@
 # 🛍️ ProdEx — Promotional Product AI Explorer
 
-> A full-stack **Retrieval-Augmented Generation (RAG)** chatbot that lets users search and explore a catalog of **42,000+ promotional products** using natural language — powered by semantic vector search and a local LLM.
+> A full-stack **Retrieval-Augmented Generation (RAG)** chatbot that lets users search and explore a catalog of **42,000+ promotional products** using natural language — powered by semantic vector search and a cloud LLM.
 
 ![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python&logoColor=white)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.35-red?logo=streamlit&logoColor=white)
 ![LangChain](https://img.shields.io/badge/LangChain-0.3-green?logo=chainlink&logoColor=white)
 ![FAISS](https://img.shields.io/badge/FAISS-Vector_Search-orange)
-![Ollama](https://img.shields.io/badge/Ollama-Local_LLM-purple)
+![Groq](https://img.shields.io/badge/Groq-Cloud_LLM-black)
+
+**🌐 Live Demo: [pro-dex.streamlit.app](https://pro-dex.streamlit.app)**
 
 ---
 
@@ -35,7 +37,7 @@ User Query
 [ Top-K Products ]         ← formatted as context
     │
     ▼
-[ Ollama LLM ]             ← mistral:7b-instruct, streamed via LangChain LCEL
+[ Groq LLM ]               ← llama-3.1-8b-instant, streamed via LangChain LCEL
     │
     ▼
 [ Streamlit UI ]           ← streaming response + glassmorphism product cards
@@ -48,10 +50,12 @@ User Query
 | Layer | Technology |
 |---|---|
 | **UI** | Streamlit + custom CSS (glassmorphism dark theme) |
-| **LLM** | Ollama (mistral:7b-instruct) via LangChain |
-| **Embeddings** | `sentence-transformers/all-MiniLM-L6-v2` (local, no API key) |
+| **LLM (cloud)** | Groq — `llama-3.1-8b-instant` via LangChain |
+| **LLM (local)** | Ollama — `mistral:7b-instruct` (auto-detected when no Groq key) |
+| **Embeddings** | `sentence-transformers/all-MiniLM-L6-v2` (local, no API key needed) |
 | **Vector DB** | FAISS `IndexFlatIP` (cosine similarity) |
 | **RAG Framework** | LangChain LCEL (streaming pipeline) |
+| **Index hosting** | Hugging Face Hub (120 MB FAISS index, auto-downloaded on startup) |
 | **Data Source** | Promidata S3 — 42,000+ real promotional product JSON files |
 | **Language** | Python 3.11 |
 
@@ -61,22 +65,22 @@ User Query
 
 ```
 prodex/
-├── app.py                     # Streamlit chatbot UI
+├── app.py                       # Streamlit chatbot UI
 ├── src/
-│   ├── chain.py               # LangChain RAG pipeline (LCEL)
-│   ├── vector_store.py        # FAISS index: build & search
-│   ├── preprocessor.py        # JSON → clean product records
-│   ├── downloader.py          # Parallel S3 downloader (20 workers)
-│   └── config.py              # All paths, URLs, and settings
+│   ├── chain.py                 # LangChain RAG pipeline (LCEL)
+│   ├── vector_store.py          # FAISS index: build, search & HF Hub download
+│   ├── preprocessor.py          # JSON → clean product records
+│   ├── downloader.py            # Parallel S3 downloader (20 workers)
+│   └── config.py                # All paths, URLs, and settings
 ├── scripts/
-│   ├── 01_download.py         # Download raw JSON files
-│   ├── 02_build_index.py      # Build FAISS vector index
-│   ├── 03_test_search.py      # CLI search tester
-│   └── 04_rebuild_all.py      # Full rebuild in one command
-├── data/
-│   └── product_metadata_clean.csv   # Exported clean CSV (22.9 MB)
+│   ├── 01_download.py           # Download raw JSON files
+│   ├── 02_build_index.py        # Build FAISS vector index
+│   ├── 03_test_search.py        # CLI search tester
+│   └── 04_rebuild_all.py        # Full rebuild in one command
 ├── requirements.txt
-└── .env.example
+├── .env.example                 # Local environment template
+└── .streamlit/
+    └── secrets.toml.example     # Streamlit Cloud secrets template
 ```
 
 ---
@@ -84,23 +88,24 @@ prodex/
 ## ⚙️ Local Setup
 
 ### Prerequisites
+
 - Python 3.11+
-- [Ollama](https://ollama.com) running locally with `mistral:7b-instruct`
+- [Ollama](https://ollama.com) running locally with `mistral:7b-instruct` — **or** a free [Groq API key](https://console.groq.com)
 
 ```bash
-# Install Ollama, then pull the model
+# If using Ollama (local mode)
 ollama pull mistral:7b-instruct
 ```
 
 ### Installation
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/prodex.git
+git clone https://github.com/MuhamedAdemi/prodex.git
 cd prodex
 
 python -m venv .venv
 .venv\Scripts\activate        # Windows
-# source .venv/bin/activate   # macOS/Linux
+# source .venv/bin/activate   # macOS / Linux
 
 pip install -r requirements.txt
 ```
@@ -109,16 +114,20 @@ pip install -r requirements.txt
 
 ```bash
 cp .env.example .env
-# Edit .env — set MAX_PRODUCTS=0 for full catalog, or e.g. 500 for testing
+# Edit .env:
+#   GROQ_API_KEY=your_key   → activates cloud mode (Groq)
+#   Leave blank             → uses Ollama locally
+#   MAX_PRODUCTS=0          → full 42k catalog
 ```
 
 ### Build the index
 
 ```bash
-# Download all 42k product JSONs + preprocess + build FAISS index (~5h download, 15min index)
+# Download all 42k product JSONs + preprocess + build FAISS index
+# (~5h download on first run, ~15min to build the index)
 python scripts/04_rebuild_all.py
 
-# Or if you already have the JSON files:
+# Already have the JSON files? Skip download:
 python scripts/04_rebuild_all.py --skip-download
 ```
 
@@ -131,14 +140,29 @@ streamlit run app.py
 
 ---
 
+## ☁️ Cloud Deployment (Streamlit Community Cloud)
+
+The FAISS index (120 MB) is hosted on [Hugging Face Hub](https://huggingface.co/datasets/muhamedademi/prodex-index) and downloaded automatically on first startup — no large files in the repo.
+
+Set these secrets in **Streamlit Cloud → App settings → Secrets**:
+
+```toml
+GROQ_API_KEY = "gsk_your_groq_key_here"
+GROQ_MODEL   = "llama-3.1-8b-instant"
+HF_REPO_ID   = "muhamedademi/prodex-index"
+TOP_K        = "5"
+```
+
+---
+
 ## 🔍 How the RAG pipeline works
 
-1. **Download**: `downloader.py` fetches 42,097 product JSON files from Promidata S3 in parallel (20 workers)
-2. **Preprocess**: `preprocessor.py` parses each JSON, extracts name, description, category, material (keyword matching across 25+ materials), colors, sizes, price, decoration methods, eco certifications
-3. **Embed**: Each product's `searchable_text` field is encoded into a 384-dimensional vector using a local sentence transformer
-4. **Index**: All vectors are stored in a FAISS `IndexFlatIP` index (inner product = cosine similarity after L2 normalization)
-5. **Retrieve**: At query time, the user's question is embedded and the top-K nearest products are retrieved
-6. **Generate**: The retrieved products are formatted as context and sent to the LLM, which streams a natural language answer back to the user
+1. **Download** — `downloader.py` fetches 42,097 product JSON files from Promidata S3 in parallel (20 workers)
+2. **Preprocess** — `preprocessor.py` parses each JSON, extracts name, description, category, material (keyword matching across 25+ materials), colors, sizes, price, decoration methods, and eco certifications
+3. **Embed** — each product's `searchable_text` field is encoded into a 384-dimensional vector using a local sentence transformer
+4. **Index** — all vectors are stored in a FAISS `IndexFlatIP` index (inner product = cosine similarity after L2 normalization)
+5. **Retrieve** — at query time, the user's question is embedded and the top-K nearest products are retrieved
+6. **Generate** — the retrieved products are formatted as context and sent to the LLM, which streams a natural language answer back to the user
 
 ---
 
@@ -169,12 +193,13 @@ Typical similarity scores for good matches: **75–80%**
 
 ## 🔧 Key technical decisions
 
+- **Dual LLM mode** — auto-detects `GROQ_API_KEY`; uses Groq cloud if set, falls back to Ollama locally. One codebase, two environments.
 - **Local embeddings** — no API cost, no rate limits, fully offline capable
-- **FAISS IndexFlatIP** — exact cosine similarity (vs approximate ANN) for high recall on a 42k dataset
+- **FAISS `IndexFlatIP`** — exact cosine similarity (vs approximate ANN) for high recall on a 42k dataset
 - **LangChain LCEL** — composable streaming pipeline: `prompt | llm | parser`
-- **Score threshold** — cards only rendered when best match ≥ 45%, preventing noise on non-product queries
+- **Score threshold** — product cards only rendered when best match ≥ 45%, preventing noise on greetings and off-topic queries
 - **Material extraction** — regex-free keyword matching with language-aware fallback (EN/DE/FR/NL)
-- **Streamlit `unsafe_allow_html`** — product cards rendered as inline HTML with glassmorphism CSS; single-line HTML to avoid CommonMark's 4-space code-block rule
+- **Streamlit `unsafe_allow_html`** — product cards rendered as single-line inline HTML to avoid CommonMark's 4-space code-block rendering bug
 
 ---
 
