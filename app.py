@@ -42,7 +42,7 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     min-height: 100vh;
 }
 
-/* Chat messages */
+/* Chat messages — bubble background */
 .stChatMessage {
     background: rgba(255,255,255,0.04) !important;
     border-radius: 16px !important;
@@ -50,7 +50,24 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     margin-bottom: 0.5rem !important;
 }
 
-/* Chat input */
+/* Chat message TEXT — force white so it shows on dark background */
+[data-testid="stChatMessageContent"] p,
+[data-testid="stChatMessageContent"] li,
+[data-testid="stChatMessageContent"] span,
+[data-testid="stChatMessageContent"] {
+    color: rgba(255,255,255,0.9) !important;
+}
+
+/* Chat input — bottom bar background (fixes white bar at bottom) */
+[data-testid="stBottom"],
+[data-testid="stBottom"] > div,
+.stChatInputContainer {
+    background: rgba(10, 8, 30, 0.98) !important;
+    border-top: 1px solid rgba(102,126,234,0.2) !important;
+}
+
+/* Chat input — the textarea itself (fixes white box + invisible text) */
+[data-testid="stChatInput"] textarea,
 .stChatInput textarea {
     background: rgba(255,255,255,0.06) !important;
     border: 1px solid rgba(102,126,234,0.4) !important;
@@ -58,7 +75,14 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     color: white !important;
     font-family: 'Inter', sans-serif !important;
 }
+[data-testid="stChatInput"] textarea::placeholder,
 .stChatInput textarea::placeholder { color: rgba(255,255,255,0.35) !important; }
+
+/* Chat input — container that wraps the textarea */
+[data-testid="stChatInput"],
+[data-testid="stChatInput"] > div {
+    background: transparent !important;
+}
 
 /* Sidebar */
 section[data-testid="stSidebar"] {
